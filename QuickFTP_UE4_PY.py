@@ -6,6 +6,8 @@ from SocketController import SocketController
 class Container(object):
     def __init__(self, *args, **kwargs):
         self.fPtr = None
+        self.sock = None
+        self.sql = None
         self.state: int = 0
         self.sql: DB_Interface.DB_Interface = None
         return super().__init__(*args, **kwargs)
@@ -52,8 +54,12 @@ class Container(object):
         return 0
 
     def CloseComps(self):
-        self.sock.Close()
-        self.sql.Close()
+        if self.sock != None:
+            self.sock.Close()
+            pass
+        if self.sql != None:
+            self.sql.Close()
+            pass
         pass
     pass
 
