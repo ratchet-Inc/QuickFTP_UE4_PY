@@ -1,13 +1,16 @@
 import datetime
 import ArgsParser
 import DB_Interface
-from SocketController import SocketController
+import SocketController
 
 class Container(object):
     def __init__(self, *args, **kwargs):
         self.fPtr = None
-        self.sock = None
-        self.sql = None
+        self.sock: SocketController.SocketController = None
+        self.clientConn: SocketController.socket = None
+        self.clientAddr: str = None
+        self.fileData: dict = None
+        self.fileDenied: bool = False
         self.state: int = 0
         self.sql: DB_Interface.DB_Interface = None
         return super().__init__(*args, **kwargs)
@@ -18,7 +21,7 @@ class Container(object):
         val = self.sql.ConnectToDB()
         if val != 0:
             return val
-        self.sock = SocketController(host = args['listenHost'], port = args['listenPort'])
+        self.sock = SocketController.SocketController(host = args['listenHost'], port = args['listenPort'])
         val = self.sock.InitSocket_Server()
         if val != 0:
             return val
@@ -49,6 +52,48 @@ class Container(object):
         if r != 0:
             return 1, r
         return 0, self.sql.ReadQuery()
+
+    def Request_GetDataInfo(self):
+        if not self.fileData:
+            return 1
+        sent = self.sock.SendData(self.clientConn, str(self.fileData['bytesLen']))
+        dataLen = len(bytes(str(self.fileData['bytesLen']+1)))
+        if sent != dataLen:
+            print("Bytes sent is invalid: %d != %d." % (sent, dataLen))
+            return 1
+        return 0
+
+    def Request_SendFileBytes(self):
+        if self.fileData == None:
+            return 1
+        sent = self.sock.SendData(self.clientConn, str(self.fileData['rawBytes']))
+        dataLen = len(bytes(str(self.fileData['rawBytes']+1)))
+        if sent != dataLen:
+            print("Bytes sent is invalid: %d != %d." % (sent, dataLen))
+            return 1
+        return 0
+
+    def Request_DenyFile(self):
+        self.fileDenied = True
+        return 0
+
+    def ProcessClientRequest(self, req):
+        CONST_GET_INFO_REQ = 'PL'
+        CONST_GET_DATA_REQ = 'DATA'
+        CONST_DENY_REQ = 'BAD'
+        func = None
+        if req == CONST_GET_INFO_REQ:
+            func = self.Request_GetDataInfo
+        elif req == CONST_GET_DATA_REQ:
+            func = self.Request_SendFileBytes
+        elif req == CONST_DENY_REQ:
+             func = self.Request_SendFileBytes
+        else:
+             print("*Error: client requesrt unknown: '%s'.\n" % req)
+             pass
+        if func == None:
+            return 1
+        return func()
 
     def Tick(self, delta: float)-> int:
         return 0
