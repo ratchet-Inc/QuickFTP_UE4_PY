@@ -33,6 +33,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="databaseSetupScript.sql" />
     <Content Include="ReadMe.md" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
