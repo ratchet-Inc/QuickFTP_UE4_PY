@@ -2,6 +2,9 @@ import datetime
 import ArgsParser
 import DB_Interface
 import SocketController
+import time
+import signal
+import errno
 
 class Container(object):
     def __init__(self, *args, **kwargs):
@@ -27,7 +30,7 @@ class Container(object):
             return val
         return 0
 
-    def ConnectToClient():
+    def ConnectToClient(self):
         try:
             (conn, addr) = self.sock.Listen()
             self.clientConn = conn
@@ -89,14 +92,25 @@ class Container(object):
         elif req == CONST_DENY_REQ:
              func = self.Request_SendFileBytes
         else:
-             print("*Error: client requesrt unknown: '%s'.\n" % req)
+             print("*Error: client request unknown: '%s'.\n" % req)
              pass
         if func == None:
             return 1
         return func()
 
     def Tick(self, delta: float)-> int:
-        return 0
+        reVal = 0
+        try:
+            data = self.sock.RecvData(self.clientConn)
+            print("recieved: %s" % data)
+            #reVal = self.ProcessClientRequest(data)
+        except SocketController.socket.error as e:
+            err = e.args[0]
+            if err != errno.EAGAIN and err != errno.EWOULDBLOCK:
+                print("*Error: A socket error occured.")
+                return 1
+            pass
+        return reVal
 
     def CloseComps(self):
         if self.sock != None:
@@ -109,13 +123,39 @@ class Container(object):
     pass
 
 def mainFunction():
+    IS_RUNNING: bool = True
+    def IntervalSignalHandler():
+        IS_RUNNING = False
+        pass
+    signal.signal(signal.SIGINT, IntervalSignalHandler)
+    signal.signal(signal.SIGTERM, IntervalSignalHandler)
+    reval = 0
     args = ArgsParser.ParseArguments()
     obj = Container()
     obj.InitComps(args)
+    print("waiting for client.")
+    reVal = obj.ConnectToClient()
+    print("client connected.")
+    if reVal != 0:
+        print("unexpected error: %d" % reVal)
+        obj.CloseComps()
+        return reVal
+    loopTime = 0.0334       # tick at approximately 30 times a second.
+    lastInterval = time.time()
+    while IS_RUNNING:
+        reVal = obj.Tick(time.time() - lastInterval)
+        if reVal != 0:
+            break
+        lastInterval = time.time()
+        time.sleep(loopTime)
+        pass
     obj.CloseComps()
-    print("ran")
-    return 0
+    return reVal
 
 if "__main__" == __name__:
-    mainFunction()
+    try:
+        mainFunction()
+    except KeyboardInterrupt:
+        print("process ended.")
+        pass
     pass

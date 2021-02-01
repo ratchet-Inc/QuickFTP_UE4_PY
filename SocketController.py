@@ -7,9 +7,12 @@ class SocketController(object):
         self.port = port
         self.buffLen = bufferLen
         pass
-    def InitSocket_Server(self):
+    def InitSocket_Server(self, IsBlocking = True):
         try:
             self.ssocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            if not IsBlocking:
+                self.ssocket.setblocking(False)
+                pass
             self.ssocket.bind((self.host, self.port))
             pass
         except:
