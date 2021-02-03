@@ -33,7 +33,7 @@ def ParseArguments(defaults = GetDefaultArgs()):
         if "-lhost" == sys.argv[i].lower():
             defaults["listenHost"] = sys.argv[i + 1]
             pass
-        if "-storageRoot" == sys.argv[i].lower():
+        if "-storageRoot".lower() == sys.argv[i].lower():
             defaults["storageDir"] = sys.argv[i + 1]
             pass
         pass

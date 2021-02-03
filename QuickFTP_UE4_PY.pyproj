@@ -13,7 +13,7 @@
     <RootNamespace>QuickFTP_UE4_PY</RootNamespace>
     <IsWindowsApplication>False</IsWindowsApplication>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>-uname stream_python_user -userpass {$password:stream_python_user} -dbname ue4renderstream -storageRoot D:/php_uploads/</CommandLineArguments>
+    <CommandLineArguments>-uname stream_python_user -userpass {$password:stream_python_user} -dbname ue4renderstream -storageRoot F:/php_uploads/</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

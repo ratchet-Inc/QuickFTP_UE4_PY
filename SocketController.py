@@ -21,10 +21,12 @@ class SocketController(object):
     def Listen(self):
         self.ssocket.listen()
         return self.ssocket.accept()
-    def SendData(self, conn:socket, msg: str)->int:
-        return conn.send(str(msg+'\0').encode("utf-8"))
-    def RecvData(self, conn: socket) -> str:
-        return conn.recv(self.buffLen).decode()
+    def SendData(self, conn:socket, msg: str, encoding: str = "utf-8")->int:
+        return conn.send(str(msg+'\0').encode(encoding))
+    def SendBytes(self, conn: socket, msg: bytes)->int:
+        return conn.send(msg + bytes(b'\0'))
+    def RecvData(self, conn: socket, encoding: str = "utf-8") -> str:
+        return conn.recv(self.buffLen).decode(encoding)
     def Close(self):
         self.ssocket.close()
         pass
