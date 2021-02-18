@@ -94,7 +94,7 @@ class Container(object):
         if self.fileData == None or self.fileData['rawBytes'] == None:
             return 1
         sent = self.sock.SendBytes(self.clientConn, self.fileData['rawBytes'])
-        dataLen = len(self.fileData['rawBytes'].decode('ascii', 'backslashreplace')) + 1
+        dataLen = len(self.fileData['rawBytes']) + 1
         if sent < dataLen:
             print("Bytes sent is invalid: %d < %d." % (sent, dataLen))
             return 1
