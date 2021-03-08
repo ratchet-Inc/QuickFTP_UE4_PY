@@ -38,11 +38,14 @@ class DB_Interface(object):
         if len(query) > 0:
             q = query
             if queryData != None:
-                q.format(queryData)
+                q = q.format(**queryData)
                 pass
             self.cursor.execute(q)
             return 0
         return 1
     def ReadQuery(self)-> tuple:
         return self.cursor.fetchall()
+    def CommitDB(self):
+        self.connection.commit()
+        return 0
     pass

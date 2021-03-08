@@ -42,6 +42,7 @@ class Container(object):
 
     def CheckUploads(self):
         query = 'SELECT * FROM RenderStreamUploads WHERE rendered = false LIMIT 1;'
+        self.sql.CommitDB()
         res = self.sql.SendQuery(query)
         if res != 0:
             return 1, res
@@ -50,11 +51,13 @@ class Container(object):
 
     def UpdateRenderedInfo(self, pkey: int, renderResult: int)-> int:
         # renderResult value: 0 for not yet rendered, 1 for success, 2 for failure
-        query = 'UPDATE RenderStreamUploads SET renderedTime = {time} , rendered = {ren} WHERE pKey = {key};'
-        data = {"time": datetime.datetime.now().timestamp(), "key": pkey, "ren": renderResult}
+        query = 'UPDATE RenderStreamUploads SET rendertime = "{time}", rendered = {ren} WHERE img_id = {key};'
+        curTime = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
+        data = {"time": curTime, "key": pkey, "ren": renderResult}
         r = self.sql.SendQuery(query, data)
         if r != 0:
             return 1, r
+        self.sql.CommitDB()
         return 0, self.sql.ReadQuery()
 
     def FetchFile(self):
@@ -102,7 +105,7 @@ class Container(object):
 
     def Request_DenyFile(self):
         self.fileDenied = True
-        return self.UpdateRenderedInfo(self.FetchFile['pkey'], 2)
+        return self.UpdateRenderedInfo(self.fileData['pkey'], 2)
 
     def ProcessClientRequest(self, req):
         CONST_GET_INFO_REQ = 'PL\0'
@@ -110,9 +113,11 @@ class Container(object):
         CONST_DENY_REQ = 'BAD\0'
         func = None
         if self.state == 4:
-            if req == self.fileData['bytesLen']:
+            if req != CONST_GET_DATA_REQ and int(req) == self.fileData['bytesLen']:
                 self.state = 2
-                return self.UpdateRenderedInfo(self.FetchFile['pkey'], 1)
+                hold = self.fileData['pkey']
+                self.fileData = None
+                return self.UpdateRenderedInfo(hold, 1)
             pass
         # checking at processing procedure we should take
         if req == CONST_GET_INFO_REQ:
@@ -125,8 +130,9 @@ class Container(object):
              print("*Error: client request unknown: '%s'.\n" % req)
              pass
         if func == None:
-            return 1
-        return func()
+            return 1, None
+        reVal = func()
+        return reVal, None
 
     def Tick(self, delta: float)-> int:
         reVal = 0
@@ -150,7 +156,7 @@ class Container(object):
         try:
             data = self.sock.RecvData(self.clientConn, "utf-16")
             print("recieved: %s" % data)
-            reVal = self.ProcessClientRequest(data.strip().rstrip())
+            reVal, obj = self.ProcessClientRequest(data.strip().rstrip())
         except SocketController.socket.error as e:
             err = e.args[0]
             if err != errno.EAGAIN and err != errno.EWOULDBLOCK:
@@ -180,7 +186,11 @@ def mainFunction():
     reval = 0
     args = ArgsParser.ParseArguments()
     obj = Container()
-    obj.InitComps(args)
+    reVal = obj.InitComps(args)
+    if reVal != 0:
+        print("unexpected initialization error: %d" % reVal)
+        obj.CloseComps()
+        return reVal
     print("waiting for client.")
     reVal = obj.ConnectToClient()
     if reVal != 0:
@@ -193,6 +203,7 @@ def mainFunction():
     while IS_RUNNING:
         reVal = obj.Tick(time.time() - lastInterval)
         if reVal != 0:
+            print("ending loop due to a failure in the tick call stack.")
             break
         # dynamic sleep to ensure we operate at the desired rate
         t = time.time()
