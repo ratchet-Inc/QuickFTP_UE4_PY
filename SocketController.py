@@ -6,12 +6,14 @@ class SocketController(object):
         self.host = host
         self.port = port
         self.buffLen = bufferLen
+        self.blockingFlag = True
         pass
     def InitSocket_Server(self, IsBlocking = True):
         try:
             self.ssocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             if not IsBlocking:
                 self.ssocket.setblocking(False)
+                self.blockingFlag = False
                 pass
             self.ssocket.bind((self.host, self.port))
             pass
@@ -20,7 +22,11 @@ class SocketController(object):
         return 0
     def Listen(self):
         self.ssocket.listen()
-        return self.ssocket.accept()
+        conn, addr = self.ssocket.accept()
+        if conn != None and self.blockingFlag == False:
+            conn.setblocking(False)
+            pass
+        return (conn, addr)
     def SendData(self, conn:socket, msg: str, encoding: str = "utf-8")->int:
         return conn.send(str(msg+'\0').encode(encoding))
     def SendBytes(self, conn: socket, msg: bytes)->int:

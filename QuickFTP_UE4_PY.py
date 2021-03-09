@@ -16,6 +16,7 @@ class Container(object):
         self.fileDenied: bool = False
         self.state: int = 0
         self.sql: DB_Interface.DB_Interface = None
+        self.sendOnFetch = 0
         return super().__init__(*args, **kwargs)
 
     def InitComps(self, args: dict)-> int:
@@ -25,19 +26,26 @@ class Container(object):
         if val != 0:
             return val
         self.sock = SocketController.SocketController(host = args['listenHost'], port = args['listenPort'])
-        val = self.sock.InitSocket_Server()
+        val = self.sock.InitSocket_Server(False)
         if val != 0:
             return val
         return 0
 
     def ConnectToClient(self):
-        try:
-            (conn, addr) = self.sock.Listen()
-            self.clientConn = conn
-            self.clientAddr = addr
+        while True:
+            try:
+                (conn, addr) = self.sock.Listen()
+                self.clientConn = conn
+                self.clientAddr = addr
+                pass
+            except:
+                if self.sock.blockingFlag == True:
+                    return 1
+                time.sleep(0.1)
+                pass
+            if self.clientConn != None:
+                break
             pass
-        except:
-            return 1
         return 0
 
     def CheckUploads(self):
@@ -72,6 +80,9 @@ class Container(object):
                 file.close()
                 self.fileData['bytesLen'] = len(self.fileData['rawBytes'])
                 self.state = 2
+                if self.sendOnFetch == 1:
+                    self.sendOnFetch = 2
+                    pass
             except OSError:
                 print("*Error: file[%s] not found." % fn)
                 pass
@@ -80,7 +91,8 @@ class Container(object):
 
     def Request_GetDataInfo(self):
         if self.fileData == None:
-            return 1
+            self.sendOnFetch = 1
+            return 0
         fileSize = 0
         if self.fileData.get('bytesLen') != None:
             fileSize = self.fileData['bytesLen']
@@ -135,6 +147,7 @@ class Container(object):
         return reVal, None
 
     def Tick(self, delta: float)-> int:
+        print("sendOnFetch: %s | state: %s | FileData == None: %s" % (self.sendOnFetch, self.state, self.fileData == None))
         reVal = 0
         if self.fileDenied == True:
             self.fileDenied = False
@@ -153,14 +166,18 @@ class Container(object):
             pass
         # socket instructions
         self.FetchFile()
+        if self.sendOnFetch == 2:
+            self.Request_GetDataInfo()
+            self.sendOnFetch = 0
+            pass
         try:
             data = self.sock.RecvData(self.clientConn, "utf-16")
             print("recieved: %s" % data)
             reVal, obj = self.ProcessClientRequest(data.strip().rstrip())
         except SocketController.socket.error as e:
             err = e.args[0]
-            if err != errno.EAGAIN and err != errno.EWOULDBLOCK:
-                print("*Error: A socket error occured.")
+            if err != errno.EAGAIN and err != errno.EWOULDBLOCK and err != errno.ETIMEDOUT:
+                print("*Error: A socket error occured: %s." % err)
                 return 1
             pass
         return reVal
