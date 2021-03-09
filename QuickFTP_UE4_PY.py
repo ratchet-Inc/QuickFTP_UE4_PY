@@ -70,7 +70,9 @@ class Container(object):
 
     def FetchFile(self):
         if self.fileData == None:
-            print("File name is invalid.")
+            if self.sendOnFetch == 0:
+                print("File name is invalid.")
+                pass
             pass
         if self.state == 1 and self.fileData != None:
             fn = self.rootDir + self.fileData['filename']
@@ -147,7 +149,6 @@ class Container(object):
         return reVal, None
 
     def Tick(self, delta: float)-> int:
-        print("sendOnFetch: %s | state: %s | FileData == None: %s" % (self.sendOnFetch, self.state, self.fileData == None))
         reVal = 0
         if self.fileDenied == True:
             self.fileDenied = False
